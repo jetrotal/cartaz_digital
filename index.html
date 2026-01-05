@@ -439,7 +439,7 @@
 
         let html = ev.description || "";
         html = html.replace(/style="[^"]*"/gi, "").replace(/<img[^>]*>/g, "");
-        html = html.replace(/<a\s+(?:[^>]*?\s+)?href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '<span class="link-badge"><i class="fa-solid fa-qrcode"></i> Link no QR</span>');
+        html ="<br> <br> "+ html.replace(/<a\s+(?:[^>]*?\s+)?href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '<span class="link-badge"><i class="fa-solid fa-qrcode"></i> Link no QR</span>')+"<br> <br> ";
         
         // We calculate basic duration here, but reflow updates it later based on pixel height
         // Base duration on word count for timeline planning
