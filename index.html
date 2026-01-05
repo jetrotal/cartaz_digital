@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agenda Teatro - Premium Sync Corrected</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    /* --- CORE VARIABLES & RESET --- */
+    :root {
+      --c1: #000; --c2: #000; --c3: #000;
+      --stroke-color: #fff;
+      --primary-dark: #d4af37;
+      --primary-light: #c01b1c;
+      --primary: var(--primary-dark);
+      --ui-text: #fff;
+      --ui-glass: rgba(0, 0, 0, .85);
+      --ui-border: hsla(0, 0%, 100%, .2);
+      --pad-safe: clamp(40px, 4vw, 60px);
+      --ticket-width: clamp(200px, 22vw, 300px);
+    }
+    * { box-sizing: border-box; }
+    body, html {
+      background: #000; color: var(--ui-text);
+      font-family: Montserrat, sans-serif;
+      height: 100%; margin: 0; overflow: hidden; padding: 0;
+      transition: color 1s ease; width: 100%;
+    }
+
+    /* --- BACKGROUNDS --- */
+    .sky-bg {
+      background: radial-gradient(circle at 20% 20%, var(--c1), transparent 60%), 
+                  radial-gradient(circle at 80% 30%, var(--c2), transparent 55%), 
+                  linear-gradient(180deg, var(--c3), #000);
+      inset: 0; position: fixed; transition: background .5s linear; z-index: 0;
+    }
+    .noise-overlay {
+      animation: noiseAnim .2s steps(2) infinite;
+      background-repeat: repeat; inset: 0; mix-blend-mode: overlay;
+      opacity: .05; pointer-events: none; position: fixed; scale: 1.5; z-index: 1;
+    }
+    @keyframes noiseAnim { 0% { transform: translate(0) } to { transform: translate(10px, 10px) } }
+
+    /* --- SCENE MANAGEMENT --- */
+    .scene {
+      inset: 0; opacity: 0; position: absolute;
+      transition: opacity 1.2s ease, visibility 1.2s;
+      visibility: hidden; z-index: 3;
+    }
+    .scene.active { opacity: 1; visibility: visible; z-index: 4; }
+
+    /* --- LOGO SCENE --- */
+    #scene-logo { display: grid; place-items: center; }
+    .svg-container { filter: drop-shadow(0 10px 40px rgba(0, 0, 0, .6)); width: min(60vw, 60vh); }
+    .dynamic-stroke { stroke: var(--stroke-color); transition: stroke 1s; }
+    svg { overflow: visible; }
+
+    /* --- EVENT SCENE --- */
+    #scene-event {
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      background: var(--ui-glass); display: flex; flex-direction: column;
+    }
+    .event-top {
+      border-bottom: 1px solid var(--ui-border); flex-shrink: 0;
+      height: 45vh; overflow: hidden; position: relative; width: 100%; z-index: 2;
+    }
+    .img-container { height: 100%; inset: 0; position: absolute; width: 100%; }
+    .img-main {
+      background-position: top; background-size: cover; height: 100%;
+      mask-image: linear-gradient(180deg, #000 70%, transparent);
+      -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent);
+      width: 100%; transition: background-image 0.5s ease;
+    }
+    .texture-overlay {
+      background-image: radial-gradient(rgba(0, 0, 0, .2) 1.5px, transparent 0);
+      background-size: 4px 4px; inset: 0; mix-blend-mode: multiply;
+      opacity: .8; pointer-events: none; position: absolute; z-index: 1;
+      -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent);
+    }
+
+    /* --- TICKET / DATE BOX --- */
+    .date-box {
+      align-items: center; background: #fff; border-radius: 4px;
+      bottom: var(--pad-safe); box-shadow: 0 20px 60px rgba(0, 0, 0, .9);
+      color: #000; display: flex; flex-direction: column;
+      justify-content: flex-start; left: var(--pad-safe); padding: 25px;
+      position: absolute; transform-origin: bottom left; width: var(--ticket-width); z-index: 3;
+    }
+    .date-day { font-size: clamp(7rem, 9vw, 11.5rem); font-weight: 900; letter-spacing: -4px; line-height: .8; margin-bottom: 5px; }
+    .date-month {
+      border-bottom: 2px dashed #0005; font-size: clamp(1rem, 1.5vw, 1.4rem);
+      font-weight: 800; letter-spacing: 2px; margin-bottom: 15px;
+      padding-bottom: 8px; text-align: center; text-transform: uppercase; width: 100%;
+    }
+    .qr-container { align-items: center; display: flex; flex-direction: column; gap: 8px; width: 100%; }
+    .date-qr { display: block; height: auto; mix-blend-mode: multiply; width: 100%; }
+
+    /* --- EVENT INFO --- */
+    .event-bottom {
+      display: flex; flex-direction: column; flex-grow: 1;
+      overflow: hidden; padding: var(--pad-safe); padding-top: calc(var(--pad-safe)*.8);
+    }
+    .org-txt { color: var(--primary); font-size: 1.1rem; font-weight: 800; letter-spacing: 2px; margin-bottom: 10px; text-transform: uppercase; }
+    h1 {
+      font-size: clamp(2.5rem, 5vw, 4.2rem); font-weight: 800; line-height: 1.05;
+      margin: 0 0 25px; text-shadow: 0 2px 20px rgba(0, 0, 0, .05); text-transform: uppercase;
+    }
+    .meta-row {
+      align-items: center; border-bottom: 1px solid var(--ui-border);
+      display: flex; flex-wrap: wrap; gap: 40px; margin-bottom: 30px; padding-bottom: 20px;
+    }
+    .meta-item {
+      align-items: center; color: var(--ui-text); display: flex;
+      font-size: clamp(1.2rem, 1.8vw, 1.5rem); font-weight: 600; gap: 12px;
+    }
+    .meta-item i { color: var(--primary); font-size: 1.1em; text-align: center; width: 30px; }
+
+    /* --- SCROLLING TEXT --- */
+    .scroll-container {
+      flex-grow: 1;
+      mask-image: linear-gradient(180deg, transparent 0, #000 15%, #000 85%, transparent);
+      -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 15%, #000 85%, transparent);
+      overflow: hidden; position: relative;
+    }
+    .scroll-content {
+      font-size: clamp(1.4rem, 2vw, 1.9rem); line-height: 1.5;
+      position: absolute; width: 100%; will-change: transform;
+      /* Remove default margins to prevent jump calculations */
+      margin: 0; padding: 0;
+    }
+    .scroll-content p { margin: 0 0 1.2em; }
+    .scroll-content strong { color: var(--primary); }
+    
+    /* Wrapper for symmetrical blocks */
+    .content-block {
+      /* Ensure no collapsing margins interfere with height calc */
+      overflow: hidden; 
+      padding-bottom: 50px; /* Space before divider */
+    }
+
+    .link-badge {
+      background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .3);
+      border-radius: 4px; color: var(--primary); display: inline-flex;
+      font-size: .8em; font-weight: 700; gap: 8px; letter-spacing: 1px;
+      margin: 0 5px; padding: 4px 12px; text-transform: uppercase; white-space: nowrap;
+    }
+    .loop-divider {
+      align-items: center; color: var(--primary); display: flex;
+      font-size: 2rem; height: 100px; justify-content: center; opacity: .6;
+    }
+
+    /* --- LAYOUT LANDSCAPE --- */
+    @media (orientation:landscape) and (min-width:1024px) {
+      #scene-event { flex-direction: row; }
+      .event-top { border-bottom: none; border-right: 1px solid var(--ui-border); height: 100%; width: 45%; }
+      .img-main, .texture-overlay { -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); }
+      .date-box { bottom: var(--pad-safe); left: auto; right: var(--pad-safe); transform-origin: top left; }
+      .event-bottom { justify-content: center; width: 55%; }
+    }
+
+    /* --- LOADER & CONTROLS --- */
+    #loader {
+      align-items: center; background: #000; color: var(--primary);
+      display: flex; font-size: 1.5rem; inset: 0; justify-content: center;
+      letter-spacing: 3px; position: fixed; text-transform: uppercase;
+      transition: opacity .5s; z-index: 5;
+    }
+    .corner-controls {
+      background: rgba(0, 0, 0, .5); border-bottom-left-radius: 10px;
+      opacity: 0; padding: 15px; position: fixed; right: 0; top: 0;
+      transition: opacity .3s ease-in-out; z-index: 6;
+    }
+    .corner-controls:hover { opacity: 1; }
+    .corner-controls button {
+      background: 0 0; border: 1px solid #fff; border-radius: 4px;
+      color: #fff; cursor: pointer; font-size: 16px; margin-left: 5px;
+      padding: 5px 10px; transition: background .2s;
+    }
+    .corner-controls button:hover { background: rgba(255, 255, 255, .3); }
+    .corner-controls svg { fill: currentColor; height: 18px; vertical-align: middle; width: 18px; }
+    
+    /* Animation Keyframes for Scroll - Seamless -50% */
+    @keyframes scrollY { 
+        0% { transform: translateY(0); } 
+        100% { transform: translateY(-50%); } 
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="sky-bg"></div>
+  <div id="noise" class="noise-overlay"></div>
+  <div id="loader">Carregando Agenda...</div>
+
+  <!-- SCENE: LOGO -->
+  <div id="scene-logo" class="scene active">
+    <div class="svg-container">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 843 1081">
+        <defs>
+          <path id="b" fill="none" stroke-linecap="butt" stroke-linejoin="bevel" stroke-width="5" d="m680 155-7-15h-23l-7 15m7-15 11-25 12 25m-153-26v41l-31-40v41m49-42v42m57-42v42m-167 0-8-41-17 36-16-36-8 41m-184-1 7-15 11-25 11 25 7 15m-7-15h-22m33-23h35m-18 0v39m-133-39h35m-18 0v39" />
+          <path id="c" fill="none" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="3" stroke-width="5" d="M692 115v39h23m-101-14q10 1 16-3 5-3 5-9t-6-9q-6-4-15-2v39m-32-39q-7-1-14 1-14 4-14 18 0 12 14 17 7 2 14 1m-248-38q-5 0-9 3-9 5-9 18 0 12 9 16 4 2 9 2l8-2q9-4 9-16 0-13-9-18-4-3-8-3Zm136-2v28q0 6-4 9-4 4-10 4-12 0-14-13v-28m-255 3h-23v18h23m0 20h-23v-20m143 21-16-18q6-1 8-6 3-4 1-8-1-4-6-6-6-3-15-1v39" />
+          <path id="d" fill="none" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="3" stroke-width="4" d="M631 501h81v264l-48 48h-33V501Zm0-329h81v312h-81V172Zm-101 0h81v312h-81V172Zm-202 0h81v312h-81V172Zm101 0h81v312h-81V172Zm-202 0h81v312h-81V172Zm-101 0h81v312h-81V172Zm101 329h81v312h-81V501Zm-101 0h81v312h-81V501Zm404 0h81v312h-81V501Zm-202 0h81v312h-81V501Zm101 0h81v312h-81V501Z" />
+          <path id="e" fill="none" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="3" stroke-width="3.5" d="M712 813h-28l28-28v28Z" />
+          <path id="f" fill="none" stroke-linecap="butt" stroke-linejoin="bevel" stroke-width="16" d="m738 967-23-51h-73l-23 51m-300 0 23-51 36-80 37 80 23 51m-23-51h-73m-69 54-27-134-53 115-51-115-27 134m527-54 36-80 37 80" />
+          <path id="g" fill="none" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="3" stroke-width="16" d="M482 832v49l1 43q5 41 46 41 21 0 35-11 14-12 13-30v-43l1-49" />
+          <g id="a">
+            <path fill="#C01B1C" d="M684 813h28v-28l-28 28m28-48V501h-81v312h33l48-48Z" />
+            <path fill="#FAC804" d="M308 501h-81v312h81V501Z" />
+            <path fill="#814797" d="M409 172h-81v312h81V172Z" />
+            <path fill="#3A4697" d="M611 172h-81v312h81V172Z" />
+          </g>
+        </defs>
+        <use href="#a" />
+        <use href="#b" class="dynamic-stroke" />
+        <use href="#c" class="dynamic-stroke" />
+        <use href="#d" class="dynamic-stroke" />
+        <use href="#e" class="dynamic-stroke" />
+        <use href="#f" class="dynamic-stroke" />
+        <use href="#g" class="dynamic-stroke" />
+      </svg>
+    </div>
+  </div>
+
+  <!-- SCENE: EVENT -->
+  <div id="scene-event" class="scene">
+    <div class="event-top">
+      <div class="img-container">
+        <div class="img-main" id="ui-img"></div>
+        <div class="texture-overlay"></div>
+      </div>
+      <div class="date-box">
+        <span class="date-day" id="ui-day">--</span>
+        <span class="date-month" id="ui-month">---</span>
+        <div class="qr-container" id="qr-container">
+          <img class="date-qr" id="ui-qr-img" alt="QR">
+        </div>
+      </div>
+    </div>
+
+    <div class="event-bottom">
+      <span class="org-txt" id="ui-org"></span>
+      <h1 id="ui-title">Carregando...</h1>
+      <div class="meta-row">
+        <div class="meta-item"><i class="fa-solid fa-calendar-day"></i><span id="ui-full-date">--/--/--</span></div>
+        <div class="meta-item"><i class="fa-regular fa-clock"></i><span id="ui-time">--h--</span></div>
+        <div class="meta-item" id="meta-cat-container" style="display:none"><i class="fa-solid fa-bookmark"></i><span id="ui-cat"></span></div>
+        <div class="meta-item"><i class="fa-solid fa-circle-exclamation"></i><span id="ui-rating">Livre</span></div>
+        <div class="meta-item"><i class="fa-solid fa-ticket"></i><span id="ui-cost">--</span></div>
+      </div>
+      <div class="scroll-container" id="scroll-wrapper">
+        <div class="scroll-content" id="ui-desc"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="corner-controls">
+    <button id="btn-fullscreen"><svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg></button>
+    <button id="btn-close"><svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+  </div>
+
+  <script>
+    /**
+     * CONFIGURATION
+     */
+    const CONFIG = {
+      api: "https://agendacultural.maua.sp.gov.br/wp-json/tribe/events/v1/events",
+      venueId: 742,
+      proxy: "https://corsproxy.io/?",
+      defaultImg: "https://images.unsplash.com/photo-1514306191717-452ec28c7814?q=80&w=1080",
+      minDuration: 20, // Min seconds per slide (fallback)
+      pixelsPerSecond: 40, // Controlled Reading Speed
+      logoDuration: 8, 
+      skySpeed: 100
+    };
+
+    /** INDEXED DB */
+    const DB = {
+      dbName: 'AgendaCache', version: 1, db: null,
+      async open() {
+        return new Promise((resolve, reject) => {
+          const req = indexedDB.open(this.dbName, this.version);
+          req.onupgradeneeded = e => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains('events')) db.createObjectStore('events', { keyPath: 'id' });
+            if (!db.objectStoreNames.contains('assets')) db.createObjectStore('assets', { keyPath: 'url' });
+          };
+          req.onsuccess = e => { this.db = e.target.result; resolve(this.db); };
+          req.onerror = e => reject(e);
+        });
+      },
+      async put(store, data) {
+        return new Promise((r, j) => { const tx=this.db.transaction(store,'readwrite'); tx.objectStore(store).put(data); tx.oncomplete=r; tx.onerror=j; });
+      },
+      async get(store, key) {
+        return new Promise((r) => { const tx=this.db.transaction(store,'readonly'); const req=tx.objectStore(store).get(key); req.onsuccess=()=>r(req.result); req.onerror=()=>r(null); });
+      },
+      async getAll(store) {
+        return new Promise((r) => { const tx=this.db.transaction(store,'readonly'); const req=tx.objectStore(store).getAll(); req.onsuccess=()=>r(req.result); });
+      }
+    };
+
+    /** ASSETS */
+    const Assets = {
+      async fetchBlob(url) {
+        try {
+          const cached = await DB.get('assets', url);
+          if (cached) return cached.blob;
+          const res = await fetch(url);
+          const blob = await res.blob();
+          await DB.put('assets', { url, blob, timestamp: Date.now() });
+          return blob;
+        } catch (e) { return null; }
+      },
+      async getQR(text) {
+        const url = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=0&data=${encodeURIComponent(text)}`;
+        return await this.fetchBlob(url);
+      }
+    };
+
+    /** VISUALS */
+    const Visuals = {
+      skyReqId: null,
+      virtualHour: new Date().getHours(),
+      skyStops: [
+        { t: 0, c: ["#0A0E27", "#1A1F3A", "#000510"] },
+        { t: 6, c: ["#FF6B35", "#FFA07A", "#4A5899"] },
+        { t: 12, c: ["#42A5F5", "#29B6F6", "#0288D1"] },
+        { t: 18, c: ["#F4511E", "#FF6E40", "#7B2CBF"] },
+        { t: 24, c: ["#0A0E27", "#1A1F3A", "#000510"] }
+      ],
+      init() {
+        const c = document.createElement("canvas"); c.width = c.height = 200;
+        const ctx = c.getContext("2d"), id = ctx.createImageData(200, 200), d = id.data;
+        for (let i = 0; i < d.length; i += 4) { const v = 255 * Math.random(); d[i] = d[i+1] = v; d[i+2] = 5*v; d[i+3] = 255; }
+        ctx.putImageData(id, 0, 0);
+        document.getElementById("noise").style.backgroundImage = `url(${c.toDataURL()})`;
+        this.animateSky();
+      },
+      animateSky() {
+        this.virtualHour = (this.virtualHour + CONFIG.skySpeed / 3600) % 24;
+        const getLuminance = rgb => (([r, g, b]) => (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255)(rgb.match(/\d+/g));
+        const lerp = (a, b, t) => a + (b - a) * t;
+        const lerpColor = (c1, c2, t) => `rgb(${(cs => [0, 1, 2].map(i => Math.round(lerp(cs[0][i], cs[1][i], t))))([c1, c2].map(c => c.match(/\w\w/g).map(x => parseInt(x, 16))))})`;
+        
+        let stop = this.skyStops.find((s, i) => {
+          let next = this.skyStops[i + 1] || this.skyStops[0];
+          let endT = next.t < s.t ? 24 + next.t : next.t;
+          return this.virtualHour >= s.t && this.virtualHour < endT;
+        }) || this.skyStops[0];
+
+        let nextStop = this.skyStops[(this.skyStops.indexOf(stop) + 1) % this.skyStops.length];
+        let duration = (nextStop.t < stop.t ? 24 + nextStop.t : nextStop.t) - stop.t;
+        let t = (this.virtualHour - stop.t) / duration;
+        const finalColors = [0, 1, 2].map(i => lerpColor(stop.c[i], nextStop.c[i], t));
+        
+        document.body.style.setProperty("--c1", finalColors[0]);
+        document.body.style.setProperty("--c2", finalColors[1]);
+        document.body.style.setProperty("--c3", finalColors[2]);
+
+        const isLight = 0.45 < (getLuminance(finalColors[0]) + getLuminance(finalColors[1])) / 2;
+        document.body.style.setProperty("--primary", isLight ? "var(--primary-light)" : "var(--primary-dark)");
+        document.body.style.setProperty("--stroke-color", isLight ? "#000" : "#fff");
+        document.body.style.setProperty("--ui-text", isLight ? "#111" : "#fff");
+        document.body.style.setProperty("--ui-glass", isLight ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.85)");
+
+        this.skyReqId = requestAnimationFrame(() => this.animateSky());
+      },
+      pauseSky() { if (this.skyReqId) cancelAnimationFrame(this.skyReqId); },
+      resumeSky() { this.pauseSky(); this.animateSky(); },
+      switchScene(type) {
+        document.querySelectorAll(".scene").forEach(el => el.classList.remove("active"));
+        document.getElementById(`scene-${type}`).classList.add("active");
+        if (type === 'event') this.pauseSky(); else this.resumeSky();
+      }
+    };
+
+    /** APP LOGIC */
+    const App = {
+      events: [], timeline: [], totalLoopTime: 0, lastSyncSlot: -1, currentEventId: null,
+
+      async init() {
+        await DB.open();
+        Visuals.init();
+        const cachedEvents = await DB.getAll('events');
+        if (cachedEvents.length) {
+          this.events = cachedEvents;
+          this.buildTimeline();
+          document.getElementById("loader").style.opacity = 0;
+          setTimeout(() => document.getElementById("loader").style.display = "none", 500);
+        }
+        this.tick();
+        this.sync();
+      },
+
+      async sync() {
+        try {
+          const now = (new Date()).toISOString();
+          const url = `${/*CONFIG.proxy}${encodeURIComponent*/(`${CONFIG.api}?venue=${CONFIG.venueId}&status=publish&per_page=15&start_date=${now}`)}`; //good news! no proxy needed
+          const res = await fetch(url);
+          const data = await res.json();
+          if (!data.events) return;
+
+          const processedEvents = [];
+          for (const ev of data.events) {
+            const p = this.processEventData(ev);
+            if (p.imgUrl) await Assets.fetchBlob(p.imgUrl);
+            if (p.link) await Assets.getQR(p.link);
+            processedEvents.push(p);
+          }
+
+          const tx = DB.db.transaction('events', 'readwrite');
+          const store = tx.objectStore('events');
+          await store.clear();
+          processedEvents.forEach(e => store.put(e));
+          
+          if (this.events.length === 0) {
+            this.events = processedEvents;
+            this.buildTimeline();
+            document.getElementById("loader").style.opacity = 0;
+            setTimeout(() => document.getElementById("loader").style.display = "none", 500);
+          } else {
+            this.pendingEvents = processedEvents;
+          }
+        } catch (e) { console.error(e); }
+      },
+
+      processEventData(ev) {
+        const d = ev.start_date_details;
+        const fullDate = (new Date(d.year, parseInt(d.month) - 1, d.day)).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" });
+        let time = `${d.hour}h${"00" !== d.minutes ? d.minutes : ""}`;
+        if (ev.end_date_details?.day === d.day) time += ` - ${ev.end_date_details.hour}h${"00" !== ev.end_date_details.minutes ? ev.end_date_details.minutes : ""}`;
+        
+        let imgUrl = CONFIG.defaultImg;
+        if (ev.image?.sizes?.medium?.url) imgUrl = ev.image.sizes.medium.url;
+        else if (ev.image?.url) imgUrl = ev.image.url;
+
+        let html = ev.description || "";
+        html = html.replace(/style="[^"]*"/gi, "").replace(/<img[^>]*>/g, "");
+        html = html.replace(/<a\s+(?:[^>]*?\s+)?href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '<span class="link-badge"><i class="fa-solid fa-qrcode"></i> Link no QR</span>');
+        
+        // We calculate basic duration here, but reflow updates it later based on pixel height
+        // Base duration on word count for timeline planning
+        const wordCount = html.replace(/<[^>]*>/g, '').split(/\s+/).length;
+        const estimatedDuration = Math.max(CONFIG.minDuration, Math.ceil(wordCount / 2.5));
+
+        return {
+          id: ev.id,
+          title: this.decodeHtml(ev.title),
+          organizer: this.decodeHtml(ev.organizer?.[0]?.organizer),
+          day: d.day,
+          month: "de " + "JANEIRO FEVEREIRO MARÇO ABRIL MAIO JUNHO JULHO AGOSTO SETEMBRO OUTUBRO NOVEMBRO DEZEMBRO".split(" ")[parseInt(d.month) - 1],
+          fullDate: fullDate.charAt(0).toUpperCase() + fullDate.slice(1),
+          time, 
+          rating: (ev.tags?.find(t => /ANOS|LIVRE/i.test(t.name))?.name || "Livre"),
+          cost: (/Livre|0\.00/.test(ev.cost || "") ? "Gratuito" : ev.cost || "Livre"),
+          imgUrl, link: ev.url,
+          category: this.decodeHtml(ev.categories?.[0]?.name),
+          htmlDesc: html,
+          duration: estimatedDuration
+        };
+      },
+
+      decodeHtml(html) {
+        if (!html) return "";
+        const txt = document.createElement("textarea");
+        txt.innerHTML = html;
+        return txt.value.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"');
+      },
+
+      buildTimeline() {
+        this.timeline = [];
+        let offset = 0;
+        this.events.forEach(ev => {
+          this.timeline.push({ type: 'logo', start: offset, end: offset + CONFIG.logoDuration });
+          offset += CONFIG.logoDuration;
+          this.timeline.push({ type: 'event', data: ev, start: offset, end: offset + ev.duration });
+          offset += ev.duration;
+        });
+        this.totalLoopTime = offset;
+      },
+
+      tick() {
+        const now = new Date();
+        const minutes = now.getMinutes();
+        const currentSlot = Math.floor(minutes / 30);
+        
+        if ((minutes === 0 || minutes === 30) && this.lastSyncSlot !== currentSlot) {
+          this.lastSyncSlot = currentSlot;
+          if (this.pendingEvents) {
+            this.events = this.pendingEvents;
+            this.pendingEvents = null;
+            this.buildTimeline();
+          }
+          this.sync();
+        }
+
+        if (this.totalLoopTime > 0) {
+          const totalSeconds = (Date.now() / 1000);
+          const loopTime = totalSeconds % this.totalLoopTime;
+          const currentItem = this.timeline.find(t => loopTime >= t.start && loopTime < t.end);
+
+          if (currentItem) {
+            if (currentItem.type === 'logo') {
+              if (this.currentEventId !== 'logo') {
+                this.currentEventId = 'logo';
+                Visuals.switchScene('logo');
+              }
+            } else if (currentItem.type === 'event') {
+              if (this.currentEventId !== currentItem.data.id) {
+                this.currentEventId = currentItem.data.id;
+                this.renderEvent(currentItem.data);
+                Visuals.switchScene('event');
+              }
+            }
+          }
+        }
+        requestAnimationFrame(() => this.tick());
+      },
+
+      async renderEvent(data) {
+        // Blobs
+        const imgBlob = await Assets.fetchBlob(data.imgUrl);
+        const qrBlob = data.link ? await Assets.getQR(data.link) : null;
+        
+        document.getElementById("ui-img").style.backgroundImage = `url('${imgBlob ? URL.createObjectURL(imgBlob) : data.imgUrl}')`;
+        document.getElementById("ui-day").innerText = data.day;
+        document.getElementById("ui-month").innerText = data.month;
+        document.getElementById("ui-title").innerText = data.title;
+        document.getElementById("ui-org").innerText = data.organizer;
+        document.getElementById("ui-time").innerText = data.time;
+        document.getElementById("ui-rating").innerText = data.rating;
+        document.getElementById("ui-cost").innerText = data.cost;
+        document.getElementById("ui-full-date").innerText = data.fullDate;
+        
+        const catEl = document.getElementById("meta-cat-container");
+        if (data.category) {
+          document.getElementById("ui-cat").innerText = data.category;
+          catEl.style.display = "flex";
+        } else { catEl.style.display = "none"; }
+
+        const qrContainer = document.getElementById("qr-container");
+        if (qrBlob) {
+          document.getElementById("ui-qr-img").src = URL.createObjectURL(qrBlob);
+          qrContainer.style.display = "flex";
+        } else { qrContainer.style.display = "none"; }
+
+        // --- SCROLL LOGIC FIXED ---
+        const descEl = document.getElementById("ui-desc");
+        descEl.style.animation = "none";
+        
+        // 1. Create a symmetrical block structure: [Content + Divider]
+        // Using a div wrapper ensures height calculation includes margins/padding correctly
+        const contentBlock = `
+          <div class="content-block">
+            ${data.htmlDesc}
+            <div class="loop-divider"><i class="fa-solid fa-ellipsis"></i></div>
+          </div>
+        `;
+
+        // 2. Duplicate exactly
+        descEl.innerHTML = contentBlock + contentBlock;
+
+        // 3. Calculate Scroll Duration based on PIXELS, not words
+        // This guarantees readability speed regardless of content length
+        // We measure the first child (the single block)
+        const singleBlockHeight = descEl.firstElementChild.offsetHeight;
+        const containerHeight = document.getElementById("scroll-wrapper").offsetHeight;
+
+        // If content is smaller than container, don't scroll
+        if (singleBlockHeight < containerHeight) {
+             descEl.innerHTML = data.htmlDesc; // Reset to simple view
+             return;
+        }
+
+        // Calculate time needed to scroll ONE entire block height
+        // Speed = Pixels / Second
+        // Time = Distance / Speed
+        const scrollTime = singleBlockHeight / CONFIG.pixelsPerSecond;
+
+        // Apply delay so people can read the top lines first
+        // 3s delay, then scroll linearly forever
+        descEl.style.animation = `scrollY ${scrollTime}s linear infinite 3s`;
+      }
+    };
+
+    App.init();
+
+    document.getElementById("btn-fullscreen").onclick = () => { !document.fullscreenElement ? document.documentElement.requestFullscreen() : document.exitFullscreen(); };
+    document.getElementById("btn-close").onclick = () => window.close();
+  </script>
+</body>
+</html>
