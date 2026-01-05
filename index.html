@@ -140,12 +140,25 @@
       padding-bottom: 50px; /* Space before divider */
     }
 
-    .link-badge {
-      background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .3);
-      border-radius: 4px; color: var(--primary); display: inline-flex;
-      font-size: .8em; font-weight: 700; gap: 8px; letter-spacing: 1px;
-      margin: 0 5px; padding: 4px 12px; text-transform: uppercase; white-space: nowrap;
+   .link-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center; 
+      
+      background: rgba(255, 255, 255, .1); 
+      border: 1px solid rgba(255, 255, 255, .3);
+      border-radius: 4px; 
+      color: var(--primary); 
+      font-size: .8em; 
+      font-weight: 700; 
+      gap: 8px; 
+      letter-spacing: 1px;
+      margin: 0 5px; 
+      padding: 4px 12px; 
+      text-transform: uppercase; 
+      white-space: nowrap;
     }
+    
     .loop-divider {
       align-items: center; color: var(--primary); display: flex;
       font-size: 2rem; height: 100px; justify-content: center; opacity: .6;
@@ -439,7 +452,7 @@
 
         let html = ev.description || "";
         html = html.replace(/style="[^"]*"/gi, "").replace(/<img[^>]*>/g, "");
-        html ="<br> <br> "+ html.replace(/<a\s+(?:[^>]*?\s+)?href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '<span class="link-badge"><i class="fa-solid fa-qrcode" style="translate:10px 10px"></i> Links no QR</span>')+"<br> <br> ";
+        html ="<br> <br> "+ html.replace(/<a\s+(?:[^>]*?\s+)?href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '<span class="link-badge"><i class="fa-solid fa-qrcode"></i> Links no QR</span>')+"<br> <br> ";
         
         // We calculate basic duration here, but reflow updates it later based on pixel height
         // Base duration on word count for timeline planning
@@ -455,7 +468,7 @@
           fullDate: fullDate.charAt(0).toUpperCase() + fullDate.slice(1),
           time, 
           rating: (ev.tags?.find(t => /ANOS|LIVRE/i.test(t.name))?.name || "Livre"),
-          cost: (/Livre|0\.00/.test(ev.cost || "") ? "---" : ev.cost || "Livre"),
+          cost: (/Livre|0\.00/.test(ev.cost || "") ? "----" : ev.cost || "Livre"),
           imgUrl, link: ev.url,
           category: this.decodeHtml(ev.categories?.[0]?.name),
           htmlDesc: html,
