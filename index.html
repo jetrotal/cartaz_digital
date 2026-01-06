@@ -279,17 +279,17 @@
      * CONFIGURATION
      */
     const CONFIG = {
+      // Usando HTTPS direto sem proxy
       api: "https://agendacultural.maua.sp.gov.br/wp-json/tribe/events/v1/events",
       venueId: 742,
-      proxy: "https://corsproxy.io/?",
       defaultImg: "https://images.unsplash.com/photo-1514306191717-452ec28c7814?q=80&w=1080",
-      minDuration: 20, // Min seconds per slide (fallback)
-      pixelsPerSecond: 40, // Controlled Reading Speed
+      minDuration: 20,
+      pixelsPerSecond: 40,
       logoDuration: 8, 
       skySpeed: 100
     };
 
-    /** INDEXED DB */
+    /** INDEXED DB (Mantido para Texto e QR Codes) */
     const DB = {
       dbName: 'AgendaCache', version: 1, db: null,
       async open() {
@@ -305,29 +305,40 @@
         });
       },
       async put(store, data) {
+        if(!this.db) return;
         return new Promise((r, j) => { const tx=this.db.transaction(store,'readwrite'); tx.objectStore(store).put(data); tx.oncomplete=r; tx.onerror=j; });
       },
       async get(store, key) {
+        if(!this.db) return null;
         return new Promise((r) => { const tx=this.db.transaction(store,'readonly'); const req=tx.objectStore(store).get(key); req.onsuccess=()=>r(req.result); req.onerror=()=>r(null); });
       },
       async getAll(store) {
+        if(!this.db) return [];
         return new Promise((r) => { const tx=this.db.transaction(store,'readonly'); const req=tx.objectStore(store).getAll(); req.onsuccess=()=>r(req.result); });
       }
     };
 
-    /** ASSETS */
+    /** ASSETS - Lógica Simplificada */
     const Assets = {
+      // Tenta baixar apenas se tiver certeza que suporta CORS (ex: QR Code)
       async fetchBlob(url) {
         try {
           const cached = await DB.get('assets', url);
           if (cached) return cached.blob;
+          
           const res = await fetch(url);
+          if (!res.ok) throw new Error('Network response was not ok');
+          
           const blob = await res.blob();
           await DB.put('assets', { url, blob, timestamp: Date.now() });
           return blob;
-        } catch (e) { return null; }
+        } catch (e) { 
+          // Se der erro de CORS ou rede, retorna null silenciosamente
+          return null; 
+        }
       },
       async getQR(text) {
+        // API do QRServer geralmente permite CORS
         const url = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=0&data=${encodeURIComponent(text)}`;
         return await this.fetchBlob(url);
       }
@@ -411,7 +422,9 @@
       async sync() {
         try {
           const now = (new Date()).toISOString();
-          const url = `${/*CONFIG.proxy}${encodeURIComponent*/(`${CONFIG.api}?venue=${CONFIG.venueId}&status=publish&per_page=15&start_date=${now}`)}`; //good news! no proxy needed
+          // URL Direta - sem proxy
+          const url = `${CONFIG.api}?venue=${CONFIG.venueId}&status=publish&per_page=15&start_date=${now}`;
+          
           const res = await fetch(url);
           const data = await res.json();
           if (!data.events) return;
@@ -419,8 +432,12 @@
           const processedEvents = [];
           for (const ev of data.events) {
             const p = this.processEventData(ev);
-            if (p.imgUrl) await Assets.fetchBlob(p.imgUrl);
+            // NÃO tentamos mais baixar a imagem principal (evita erro de CORS)
+            // p.imgUrl é apenas uma string agora
+            
+            // Tentamos baixar o QR (geralmente funciona, se falhar o renderEvent lida com isso)
             if (p.link) await Assets.getQR(p.link);
+            
             processedEvents.push(p);
           }
 
@@ -437,7 +454,7 @@
           } else {
             this.pendingEvents = processedEvents;
           }
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error("Sync error (Offline?):", e); }
       },
 
       processEventData(ev) {
@@ -454,8 +471,6 @@
         html = html.replace(/style="[^"]*"/gi, "").replace(/<img[^>]*>/g, "");
         html ="<br> <br> "+ html.replace(/<a\s+(?:[^>]*?\s+)?href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '<span class="link-badge"><i class="fa-solid fa-qrcode"></i> Links no QR</span>')+"<br> <br> ";
         
-        // We calculate basic duration here, but reflow updates it later based on pixel height
-        // Base duration on word count for timeline planning
         const wordCount = html.replace(/<[^>]*>/g, '').split(/\s+/).length;
         const estimatedDuration = Math.max(CONFIG.minDuration, Math.ceil(wordCount / 2.5));
 
@@ -469,7 +484,8 @@
           time, 
           rating: (ev.tags?.find(t => /ANOS|LIVRE/i.test(t.name))?.name || "Livre"),
           cost: (/Livre|0\.00/.test(ev.cost || "") ? "----" : ev.cost || "Livre"),
-          imgUrl, link: ev.url,
+          imgUrl, // URL STRING PURA
+          link: ev.url,
           category: this.decodeHtml(ev.categories?.[0]?.name),
           htmlDesc: html,
           duration: estimatedDuration
@@ -534,11 +550,16 @@
       },
 
       async renderEvent(data) {
-        // Blobs
-        const imgBlob = await Assets.fetchBlob(data.imgUrl);
-        const qrBlob = data.link ? await Assets.getQR(data.link) : null;
+        // IMAGE LOGIC: Usa a URL direta (Browser Cache) em vez de Blob
+        document.getElementById("ui-img").style.backgroundImage = `url('${data.imgUrl}')`;
         
-        document.getElementById("ui-img").style.backgroundImage = `url('${imgBlob ? URL.createObjectURL(imgBlob) : data.imgUrl}')`;
+        // QR LOGIC: Tenta pegar do Blob (se existe), senão tenta gerar na hora, senão esconde
+        let qrBlobUrl = null;
+        if(data.link) {
+            const blob = await Assets.fetchBlob(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=0&data=${encodeURIComponent(data.link)}`);
+            if(blob) qrBlobUrl = URL.createObjectURL(blob);
+        }
+
         document.getElementById("ui-day").innerText = data.day;
         document.getElementById("ui-month").innerText = data.month;
         document.getElementById("ui-title").innerText = data.title;
@@ -555,17 +576,15 @@
         } else { catEl.style.display = "none"; }
 
         const qrContainer = document.getElementById("qr-container");
-        if (qrBlob) {
-          document.getElementById("ui-qr-img").src = URL.createObjectURL(qrBlob);
+        if (qrBlobUrl) {
+          document.getElementById("ui-qr-img").src = qrBlobUrl;
           qrContainer.style.display = "flex";
         } else { qrContainer.style.display = "none"; }
 
-        // --- SCROLL LOGIC FIXED ---
+        // --- SCROLL LOGIC ---
         const descEl = document.getElementById("ui-desc");
         descEl.style.animation = "none";
         
-        // 1. Create a symmetrical block structure: [Content + Divider]
-        // Using a div wrapper ensures height calculation includes margins/padding correctly
         const contentBlock = `
           <div class="content-block">
             ${data.htmlDesc}
@@ -573,28 +592,17 @@
           </div>
         `;
 
-        // 2. Duplicate exactly
         descEl.innerHTML = contentBlock + contentBlock;
 
-        // 3. Calculate Scroll Duration based on PIXELS, not words
-        // This guarantees readability speed regardless of content length
-        // We measure the first child (the single block)
         const singleBlockHeight = descEl.firstElementChild.offsetHeight;
         const containerHeight = document.getElementById("scroll-wrapper").offsetHeight;
 
-        // If content is smaller than container, don't scroll
         if (singleBlockHeight < containerHeight) {
-             descEl.innerHTML = data.htmlDesc; // Reset to simple view
+             descEl.innerHTML = data.htmlDesc; 
              return;
         }
 
-        // Calculate time needed to scroll ONE entire block height
-        // Speed = Pixels / Second
-        // Time = Distance / Speed
         const scrollTime = singleBlockHeight / CONFIG.pixelsPerSecond;
-
-        // Apply delay so people can read the top lines first
-        // 3s delay, then scroll linearly forever
         descEl.style.animation = `scrollY ${scrollTime}s linear infinite 3s`;
       }
     };
