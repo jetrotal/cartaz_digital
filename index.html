@@ -410,7 +410,8 @@
         Visuals.init();
         const cachedEvents = await DB.getAll('events');
         if (cachedEvents.length) {
-          this.events = cachedEvents;
+          const nowObj = new Date();
+          this.events = cachedEvents.filter(ev => ev.realEndDate > nowObj);
           this.buildTimeline();
           document.getElementById("loader").style.opacity = 0;
           setTimeout(() => document.getElementById("loader").style.display = "none", 500);
@@ -419,27 +420,27 @@
         this.sync();
       },
 
-      async sync() {
+     async sync() {
         try {
           const now = (new Date()).toISOString();
-          // URL Direta - sem proxy
           const url = `${CONFIG.api}?venue=${CONFIG.venueId}&status=publish&per_page=15&start_date=${now}`;
           
           const res = await fetch(url);
           const data = await res.json();
           if (!data.events) return;
 
-          const processedEvents = [];
+          let processedEvents = [];
           for (const ev of data.events) {
             const p = this.processEventData(ev);
-            // NÃO tentamos mais baixar a imagem principal (evita erro de CORS)
-            // p.imgUrl é apenas uma string agora
-            
-            // Tentamos baixar o QR (geralmente funciona, se falhar o renderEvent lida com isso)
             if (p.link) await Assets.getQR(p.link);
-            
             processedEvents.push(p);
           }
+
+          // --- CORREÇÃO DE FILTRO AQUI ---
+          // Remove eventos onde a data de término é menor que agora
+          const nowObj = new Date();
+          processedEvents = processedEvents.filter(ev => ev.realEndDate > nowObj);
+          // -------------------------------
 
           const tx = DB.db.transaction('events', 'readwrite');
           const store = tx.objectStore('events');
@@ -457,8 +458,13 @@
         } catch (e) { console.error("Sync error (Offline?):", e); }
       },
 
-      processEventData(ev) {
+     processEventData(ev) {
         const d = ev.start_date_details;
+        const ed = ev.end_date_details; // Pegamos os detalhes do fim
+
+        // Cria data de término real para comparação (Mês no JS é 0-11)
+        const realEndDate = new Date(ed.year, parseInt(ed.month) - 1, ed.day, ed.hour, ed.minutes);
+
         const fullDate = (new Date(d.year, parseInt(d.month) - 1, d.day)).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" });
         let time = `${d.hour}h${"00" !== d.minutes ? d.minutes : ""}`;
         if (ev.end_date_details?.day === d.day) time += ` - ${ev.end_date_details.hour}h${"00" !== ev.end_date_details.minutes ? ev.end_date_details.minutes : ""}`;
@@ -484,11 +490,12 @@
           time, 
           rating: (ev.tags?.find(t => /ANOS|LIVRE/i.test(t.name))?.name || "Livre"),
           cost: (/Livre|0\.00/.test(ev.cost || "") ? "----" : ev.cost || "Livre"),
-          imgUrl, // URL STRING PURA
+          imgUrl, 
           link: ev.url,
           category: this.decodeHtml(ev.categories?.[0]?.name),
           htmlDesc: html,
-          duration: estimatedDuration
+          duration: estimatedDuration,
+          realEndDate: realEndDate // <--- NOVO CAMPO IMPORTANTE
         };
       },
 
