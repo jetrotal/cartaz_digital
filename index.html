@@ -474,10 +474,6 @@
         const wordCount = html.replace(/<[^>]*>/g, '').split(/\s+/).length;
         const estimatedDuration = Math.max(CONFIG.minDuration, Math.ceil(wordCount / 2.5));
 
-        // --- CORREÇÃO: Converter end_date para Timestamp numérico ---
-        // O replace(/-/g, "/") ajuda na compatibilidade com Safari/iOS
-        const endTimestamp = new Date(ev.end_date.replace(/-/g, "/")).getTime(); 
-
         return {
           id: ev.id,
           title: this.decodeHtml(ev.title),
@@ -488,12 +484,11 @@
           time, 
           rating: (ev.tags?.find(t => /ANOS|LIVRE/i.test(t.name))?.name || "Livre"),
           cost: (/Livre|0\.00/.test(ev.cost || "") ? "----" : ev.cost || "Livre"),
-          imgUrl, 
+          imgUrl, // URL STRING PURA
           link: ev.url,
           category: this.decodeHtml(ev.categories?.[0]?.name),
           htmlDesc: html,
-          duration: estimatedDuration,
-          endTimestamp: endTimestamp
+          duration: estimatedDuration
         };
       },
 
@@ -504,33 +499,16 @@
         return txt.value.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"');
       },
 
-     buildTimeline() {
+      buildTimeline() {
         this.timeline = [];
         let offset = 0;
-        const now = Date.now(); // Hora exata de agora
-
-        // --- CORREÇÃO: Filtrar apenas eventos que terminam NO FUTURO ---
-        const activeEvents = this.events.filter(ev => ev.endTimestamp > now);
-
-        // Se tivermos eventos ativos, usamos eles. Se não sobrar nenhum (tudo acabou),
-        // fallback para o array original (ou exibe nada), aqui mantive a lógica de exibir.
-        const displayList = activeEvents.length > 0 ? activeEvents : [];
-
-        displayList.forEach(ev => {
+        this.events.forEach(ev => {
           this.timeline.push({ type: 'logo', start: offset, end: offset + CONFIG.logoDuration });
           offset += CONFIG.logoDuration;
           this.timeline.push({ type: 'event', data: ev, start: offset, end: offset + ev.duration });
           offset += ev.duration;
         });
         this.totalLoopTime = offset;
-        
-        // Se não houver eventos, força a logo loop infinito ou zera
-        if (this.totalLoopTime === 0 && this.events.length > 0) {
-             // Caso raro: tem eventos carregados, mas todos expiraram.
-             // Recarrega a página ou mostra apenas logo.
-             this.timeline.push({ type: 'logo', start: 0, end: CONFIG.logoDuration });
-             this.totalLoopTime = CONFIG.logoDuration;
-        }
       },
 
       tick() {
