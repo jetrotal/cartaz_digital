@@ -1,0 +1,4 @@
+#scene-logo { display: grid; place-items: center; }
+.svg-container { filter: drop-shadow(0 10px 40px rgba(0, 0, 0, .6)); width: min(60vw, 60vh); }
+.dynamic-stroke { stroke: var(--stroke-color); transition: stroke 1s; }
+svg { overflow: visible; }

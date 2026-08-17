@@ -1,0 +1,77 @@
+:root {
+  --c1: #000; --c2: #000; --c3: #000;
+  --stroke-color: #fff;
+  --primary-dark: #d4af37;
+  --primary-light: #c01b1c;
+  --primary: var(--primary-dark);
+  --ui-text: #fff;
+  --ui-glass: rgba(0, 0, 0, .85);
+  --ui-border: hsla(0, 0%, 100%, .2);
+  --pad-safe: clamp(40px, 4vw, 60px);
+  --ticket-width: clamp(200px, 22vw, 300px);
+
+  /* Fallback Theme Swatches (Legacy) */
+  --theme-swatch-01: #4d6175;
+  --theme-swatch-02: #726f20;
+  --theme-swatch-03: #4c7569;
+  --theme-swatch-04: #7a2064;
+  --theme-swatch-05: #6f7320;
+  --theme-swatch-06: #53616e;
+  --theme-swatch-07: #746f73;
+  --theme-swatch-08: #204a75;
+  --theme-swatch-09: #6e696f;
+  --theme-swatch-10: #720000;
+}
+
+* { box-sizing: border-box; }
+
+body, html {
+  background: #000; color: var(--ui-text);
+  font-family: Montserrat, sans-serif;
+  height: 100%; margin: 0; overflow: hidden; padding: 0;
+  transition: color 1s ease; width: 100%;
+  user-select: none;
+}
+
+
+.sky-bg {
+  background: radial-gradient(circle at 20% 20%, var(--c1), transparent 60%), 
+              radial-gradient(circle at 80% 30%, var(--c2), transparent 55%), 
+              linear-gradient(180deg, var(--c3), #000);
+  inset: 0; position: fixed; transition: background .5s linear; z-index: 0;
+}
+
+.noise-overlay {
+  animation: noiseAnim .2s steps(2) infinite;
+  background-repeat: repeat; inset: 0; mix-blend-mode: overlay;
+  opacity: .05; pointer-events: none; position: fixed; scale: 1.5; z-index: 1;
+}
+
+@keyframes noiseAnim { 0% { transform: translate(0) } to { transform: translate(10px, 10px) } }
+
+.scene {
+  inset: 0; opacity: 0; position: absolute;
+  transition: opacity 1.2s ease, visibility 1.2s;
+  visibility: hidden; z-index: 3;
+}
+.scene.active { opacity: 1; visibility: visible; z-index: 4; }
+
+#loader {
+  align-items: center; background: #000; color: var(--primary);
+  display: flex; font-size: 1.5rem; inset: 0; justify-content: center;
+  letter-spacing: 3px; position: fixed; text-transform: uppercase;
+  transition: opacity .5s; z-index: 5;
+}
+
+.corner-controls {
+  background: rgba(0, 0, 0, .5); border-bottom-left-radius: 10px;
+  opacity: 0; padding: 15px; position: fixed; right: 0; top: 0;
+  transition: opacity .3s ease-in-out; z-index: 6;
+}
+.corner-controls:hover { opacity: 1; }
+.corner-controls button {
+  background: 0 0; border: 1px solid #fff; border-radius: 4px;
+  color: #fff; cursor: pointer; font-size: 16px; margin-left: 5px;
+  padding: 5px 10px; transition: background .2s;
+}
+.corner-controls svg { fill: currentColor; height: 18px; vertical-align: middle; width: 18px; }
