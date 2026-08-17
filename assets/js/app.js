@@ -13,7 +13,7 @@ const App = {
     const cached = await DB.getAll('events');
     if (cached.length) {
       const now = new Date();
-      this.events = cached.filter(ev => ev.realEndDate > now && !/fechad[ao] para convidados/i.test(ev.htmlDesc || ""));
+      this.events = cached.filter(ev => ev.realEndDate > now && !/fechad[ao] para /i.test(ev.htmlDesc || ""));
       this.buildTimeline();
       this.hideLoader();
     }
@@ -37,7 +37,7 @@ const App = {
 
       let processed = [];
       for (const ev of data.events) {
-        if (/fechad[ao] para convidados/i.test(ev.description || "")) continue;
+        if (/fechad[ao] para /i.test(ev.description || "")) continue;
         
         const p = this.processEventData(ev);
         if (p.link) await Assets.getQR(p.link);
