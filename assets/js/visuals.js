@@ -50,6 +50,6 @@ const Visuals = {
   switchScene(type) {
     document.querySelectorAll(".scene").forEach(el => el.classList.remove("active"));
     document.getElementById(`scene-${type}`).classList.add("active");
-    if (type === 'event') this.pauseSky(); else this.resumeSky();
+    if (type === 'event' || type === 'list') this.pauseSky(); else this.resumeSky();
   }
 };

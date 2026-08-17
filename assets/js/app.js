@@ -7,6 +7,7 @@ const App = {
   async init() {
     LogoScene.init();
     EventScene.init();
+    ListScene.init();
     await DB.open();
     Visuals.init();
     
@@ -103,11 +104,24 @@ const App = {
   buildTimeline() {
     this.timeline = [];
     let offset = 0;
-    this.events.forEach(ev => {
+    let eventCounter = 0;
+    
+    // Calcula um tempo generoso que possibilite deslizar caso hajam muitos eventos no apanhado (em torno de ~3.5s por evento)
+    const listDuration = Math.max(CONFIG.listDuration || 20, Math.ceil(this.events.length * 3.5));
+
+    this.events.forEach((ev, index) => {
       this.timeline.push({ type: 'logo', start: offset, end: offset + CONFIG.logoDuration });
       offset += CONFIG.logoDuration;
+      
       this.timeline.push({ type: 'event', data: ev, start: offset, end: offset + ev.duration });
       offset += ev.duration;
+
+      eventCounter++;
+      // A cena "Lista de eventos" será injetada a cada 3 eventos OU sempre no último evento.
+      if (eventCounter % 3 === 0 || index === this.events.length - 1) {
+        this.timeline.push({ type: 'list', data: this.events, start: offset, end: offset + listDuration });
+        offset += listDuration;
+      }
     });
     this.totalLoopTime = offset;
   },
@@ -138,6 +152,10 @@ const App = {
           this.currentEventId = item.data.id;
           EventScene.render(item.data);
           Visuals.switchScene('event');
+        } else if (item.type === 'list' && this.currentEventId !== 'list-' + item.start) {
+          this.currentEventId = 'list-' + item.start;
+          ListScene.render(item.data);
+          Visuals.switchScene('list');
         }
       }
     }

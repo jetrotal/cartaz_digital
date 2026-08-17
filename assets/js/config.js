@@ -5,5 +5,6 @@ const CONFIG = {
   minDuration: 20,
   pixelsPerSecond: 40,
   logoDuration: 8, 
+  listDuration: 20,
   skySpeed: 100
 };
